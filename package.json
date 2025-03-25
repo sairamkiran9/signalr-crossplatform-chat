@@ -1,0 +1,17 @@
+{
+  "name": "signalr-poc",
+  "version": "1.0.0",
+  "description": "SignalR Proof of Concept",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "browser-example": "live-server --port=8080 --open=browser-example.html"
+  },
+  "dependencies": {
+    "@microsoft/signalr": "^8.0.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

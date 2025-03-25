@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignalR Browser Example</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #messagesList { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-bottom: 10px; }
+        #messageInput { padding: 5px; width: 300px; }
+        button { padding: 5px 10px; }
+        .status { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>SignalR Browser Example</h1>
+    <div class="status">Connection status: <span id="connectionStatus">Disconnected</span></div>
+    <div id="messagesList"></div>
+    <div>
+        <input type="text" id="messageInput" placeholder="Type a message...">
+        <button id="sendButton">Send</button>
+        <button id="connectButton">Connect</button>
+        <button id="disconnectButton" disabled>Disconnect</button>
+    </div>
+
+    <!-- Load SignalR from node_modules -->
+    <script src="node_modules/@microsoft/signalr/dist/browser/signalr.js"></script>
+    <script>
+        // DOM Elements
+        const connectionStatusEl = document.getElementById('connectionStatus');
+        const messagesListEl = document.getElementById('messagesList');
+        const messageInputEl = document.getElementById('messageInput');
+        const sendButtonEl = document.getElementById('sendButton');
+        const connectButtonEl = document.getElementById('connectButton');
+        const disconnectButtonEl = document.getElementById('disconnectButton');
+
+        // Create SignalR connection
+        // Get a user ID from localStorage or generate a new one
+        let userId = localStorage.getItem('signalr_userId');
+        if (!userId) {
+            userId = 'user_' + new Date().getTime();
+            localStorage.setItem('signalr_userId', userId);
+        }
+        
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("http://localhost:5000/chat", {
+                // Send the userId as a query parameter
+                queryString: `userId=${userId}`
+            })  // Local SignalR server URL with custom userId
+            .withAutomaticReconnect()
+            .build();
+
+        // Add message to the UI
+        function addMessage(message) {
+            const li = document.createElement('div');
+            li.textContent = message;
+            messagesListEl.appendChild(li);
+            messagesListEl.scrollTop = messagesListEl.scrollHeight;
+        }
+
+        // Register handler for receiving messages
+        connection.on("ReceiveMessage", (user, message) => {
+            addMessage(`${user}: ${message}`);
+        });
+        
+        // Handle the SetUserId message from the server
+        connection.on("SetUserId", (assignedUserId) => {
+            userId = assignedUserId;
+            localStorage.setItem('signalr_userId', userId);
+            addMessage(`Your user ID is: ${userId}`);
+        });
+
+        // Connection status change handler
+        connection.onclose(() => {
+            connectionStatusEl.textContent = 'Disconnected';
+            connectButtonEl.disabled = false;
+            disconnectButtonEl.disabled = true;
+            addMessage('Connection closed');
+        });
+
+        // Connect button click handler
+        connectButtonEl.addEventListener('click', async () => {
+            try {
+                connectionStatusEl.textContent = 'Connecting...';
+                await connection.start();
+                connectionStatusEl.textContent = 'Connected';
+                connectButtonEl.disabled = true;
+                disconnectButtonEl.disabled = false;
+                addMessage('Connected to SignalR hub');
+            } catch (err) {
+                console.error(err);
+                connectionStatusEl.textContent = 'Failed to connect';
+                addMessage(`Connection error: ${err}`);
+            }
+        });
+
+        // Disconnect button click handler
+        disconnectButtonEl.addEventListener('click', async () => {
+            try {
+                await connection.stop();
+                connectionStatusEl.textContent = 'Disconnected';
+                connectButtonEl.disabled = false;
+                disconnectButtonEl.disabled = true;
+            } catch (err) {
+                console.error(err);
+                addMessage(`Disconnect error: ${err}`);
+            }
+        });
+
+        // Send button click handler
+        sendButtonEl.addEventListener('click', async () => {
+            const message = messageInputEl.value.trim();
+            if (message && connection.state === signalR.HubConnectionState.Connected) {
+                try {
+                    // Use the user ID when sending messages
+                    await connection.invoke("SendMessage", `User_${userId}`, message);
+                    messageInputEl.value = '';
+                } catch (err) {
+                    console.error(err);
+                    addMessage(`Send error: ${err}`);
+                }
+            }
+        });
+
+        // Allow Enter key to send messages
+        messageInputEl.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                sendButtonEl.click();
+            }
+        });
+    </script>
+</body>
+</html>

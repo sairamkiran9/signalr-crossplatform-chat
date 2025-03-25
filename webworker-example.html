@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignalR WebWorker Example</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #messagesList { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-bottom: 10px; }
+        #messageInput { padding: 5px; width: 300px; }
+        button { padding: 5px 10px; }
+        .status { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>SignalR WebWorker Example</h1>
+    <div class="status">Connection status: <span id="connectionStatus">Disconnected</span></div>
+    <div id="messagesList"></div>
+    <div>
+        <input type="text" id="messageInput" placeholder="Type a message...">
+        <button id="sendButton">Send</button>
+        <button id="connectButton">Connect</button>
+        <button id="disconnectButton" disabled>Disconnect</button>
+    </div>
+
+    <script>
+        // DOM Elements
+        const connectionStatusEl = document.getElementById('connectionStatus');
+        const messagesListEl = document.getElementById('messagesList');
+        const messageInputEl = document.getElementById('messageInput');
+        const sendButtonEl = document.getElementById('sendButton');
+        const connectButtonEl = document.getElementById('connectButton');
+        const disconnectButtonEl = document.getElementById('disconnectButton');
+
+        // Create WebWorker
+        let worker = null;
+
+        // Add message to the UI
+        function addMessage(message) {
+            const li = document.createElement('div');
+            li.textContent = message;
+            messagesListEl.appendChild(li);
+            messagesListEl.scrollTop = messagesListEl.scrollHeight;
+        }
+
+        // Initialize the worker
+        function initWorker() {
+            if (worker) {
+                worker.terminate();
+            }
+            
+            worker = new Worker('webworker-example.js');
+            
+            worker.onmessage = function(e) {
+                const data = e.data;
+                
+                switch (data.type) {
+                    case "status":
+                        connectionStatusEl.textContent = data.data;
+                        addMessage(`Status: ${data.data}`);
+                        
+                        if (data.data.includes("Connected successfully")) {
+                            connectButtonEl.disabled = true;
+                            disconnectButtonEl.disabled = false;
+                        } else if (data.data === "Disconnected") {
+                            connectButtonEl.disabled = false;
+                            disconnectButtonEl.disabled = true;
+                        }
+                        break;
+                        
+                    case "messageReceived":
+                        const message = data.data;
+                        addMessage(`${message.user}: ${message.message}`);
+                        break;
+                        
+                    case "messageSent":
+                        const sent = data.data;
+                        addMessage(`You sent: ${sent.message}`);
+                        break;
+                        
+                    case "error":
+                        addMessage(`Error: ${data.data}`);
+                        console.error(data.data);
+                        break;
+                }
+            };
+            
+            worker.onerror = function(e) {
+                addMessage(`Worker error: ${e.message}`);
+                console.error('Worker error:', e);
+            };
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', initWorker);
+
+        // Connect button click handler
+        connectButtonEl.addEventListener('click', () => {
+            worker.postMessage({ type: "connect" });
+        });
+
+        // Disconnect button click handler
+        disconnectButtonEl.addEventListener('click', () => {
+            worker.postMessage({ type: "disconnect" });
+        });
+
+        // Send button click handler
+        sendButtonEl.addEventListener('click', () => {
+            const message = messageInputEl.value.trim();
+            if (message) {
+                worker.postMessage({ 
+                    type: "sendMessage", 
+                    user: "WebWorker User", 
+                    message: message 
+                });
+                messageInputEl.value = '';
+            }
+        });
+
+        // Allow Enter key to send messages
+        messageInputEl.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                sendButtonEl.click();
+            }
+        });
+    </script>
+</body>
+</html>

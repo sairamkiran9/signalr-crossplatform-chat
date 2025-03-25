@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignalR Custom User ID Example</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1, h2 { color: #333; }
+        .container { display: flex; flex-direction: column; gap: 20px; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .connection-info { background-color: #f5f5f5; padding: 10px; border-radius: 5px; font-family: monospace; }
+        #messagesList { height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        #userIdInput { padding: 8px; width: 300px; }
+        button { padding: 8px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .input-group { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; }
+        .status { font-weight: bold; }
+        hr { border: 0; height: 1px; background-color: #ddd; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <h1>SignalR Custom User ID Example</h1>
+    
+    <div class="container">
+        <div class="card">
+            <h2>Connection Setup</h2>
+            <div class="input-group">
+                <label for="userIdInput">Custom User ID:</label>
+                <input type="text" id="userIdInput" placeholder="Enter a custom user ID">
+                <button id="connectButton">Connect</button>
+                <button id="disconnectButton" disabled>Disconnect</button>
+            </div>
+            <div class="status">Status: <span id="connectionStatus">Disconnected</span></div>
+        </div>
+        
+        <div class="card">
+            <h2>Connection Information</h2>
+            <div class="connection-info">
+                <div>Connection ID: <span id="connectionId">None</span></div>
+                <div>User ID: <span id="userId">None</span></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Messages</h2>
+            <div id="messagesList"></div>
+            <div class="input-group">
+                <input type="text" id="messageInput" placeholder="Type a message...">
+                <button id="sendButton">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load SignalR from node_modules -->
+    <script src="node_modules/@microsoft/signalr/dist/browser/signalr.js"></script>
+    <script>
+        // DOM Elements
+        const connectionStatusEl = document.getElementById('connectionStatus');
+        const messagesListEl = document.getElementById('messagesList');
+        const messageInputEl = document.getElementById('messageInput');
+        const userIdInputEl = document.getElementById('userIdInput');
+        const sendButtonEl = document.getElementById('sendButton');
+        const connectButtonEl = document.getElementById('connectButton');
+        const disconnectButtonEl = document.getElementById('disconnectButton');
+        const connectionIdEl = document.getElementById('connectionId');
+        const userIdEl = document.getElementById('userId');
+
+        // SignalR connection
+        let connection = null;
+        let currentUserId = null;
+
+        // Add message to the UI
+        function addMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            messagesListEl.appendChild(messageElement);
+            messagesListEl.scrollTop = messagesListEl.scrollHeight;
+        }
+
+        // Connect button click handler
+        connectButtonEl.addEventListener('click', async () => {
+            // Get user ID from input or generate one
+            const userIdInput = userIdInputEl.value.trim();
+            currentUserId = userIdInput || `user-${new Date().getTime()}`;
+            
+            try {
+                connectionStatusEl.textContent = 'Connecting...';
+                
+                // Create SignalR connection with custom user ID
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl(`http://localhost:5000/chat?userId=${currentUserId}`)
+                    .withAutomaticReconnect()
+                    .build();
+                
+                // Register message handler
+                connection.on("ReceiveMessage", (user, message) => {
+                    addMessage(`${user}: ${message}`);
+                });
+                
+                // Handle the SetUserId message from the server
+                connection.on("SetUserId", (assignedUserId) => {
+                    currentUserId = assignedUserId;
+                    userIdEl.textContent = currentUserId;
+                    addMessage(`Server assigned user ID: ${currentUserId}`);
+                });
+                
+                // Connection status handlers
+                connection.onclose(() => {
+                    connectionStatusEl.textContent = 'Disconnected';
+                    connectButtonEl.disabled = false;
+                    disconnectButtonEl.disabled = true;
+                    connectionIdEl.textContent = 'None';
+                    addMessage('Connection closed');
+                });
+                
+                // Start the connection
+                await connection.start();
+                
+                // Update UI
+                connectionStatusEl.textContent = 'Connected';
+                connectionIdEl.textContent = connection.connectionId;
+                userIdEl.textContent = currentUserId;
+                connectButtonEl.disabled = true;
+                disconnectButtonEl.disabled = false;
+                addMessage('Connected to SignalR hub');
+                
+                // Send a hello message
+                await connection.invoke("SendMessage", currentUserId, "Hello, I just connected!");
+                
+            } catch (err) {
+                console.error(err);
+                connectionStatusEl.textContent = 'Failed to connect';
+                addMessage(`Connection error: ${err}`);
+            }
+        });
+
+        // Disconnect button click handler
+        disconnectButtonEl.addEventListener('click', async () => {
+            if (connection) {
+                try {
+                    await connection.stop();
+                    connection = null;
+                    connectionStatusEl.textContent = 'Disconnected';
+                    connectButtonEl.disabled = false;
+                    disconnectButtonEl.disabled = true;
+                } catch (err) {
+                    console.error(err);
+                    addMessage(`Disconnect error: ${err}`);
+                }
+            }
+        });
+
+        // Send button click handler
+        sendButtonEl.addEventListener('click', async () => {
+            const message = messageInputEl.value.trim();
+            if (message && connection && connection.state === signalR.HubConnectionState.Connected) {
+                try {
+                    await connection.invoke("SendMessage", currentUserId, message);
+                    messageInputEl.value = '';
+                } catch (err) {
+                    console.error(err);
+                    addMessage(`Send error: ${err}`);
+                }
+            }
+        });
+
+        // Allow Enter key to send messages
+        messageInputEl.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                sendButtonEl.click();
+            }
+        });
+        
+        // Preload last used ID
+        userIdInputEl.value = localStorage.getItem('lastCustomUserId') || '';
+        userIdInputEl.addEventListener('change', () => {
+            localStorage.setItem('lastCustomUserId', userIdInputEl.value);
+        });
+    </script>
+</body>
+</html>
