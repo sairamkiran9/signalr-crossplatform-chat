@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desigo SignalR Client - Complete Solution</title>
+</head>
+<body>
+    <h1>Desigo SignalR Client</h1>
+    
+    <div class="tabs">
+        <div class="tab active" data-tab="auth">Authentication</div>
+        <div class="tab" data-tab="connection">Connection</div>
+    </div>
+    
+    <div id="authTab" class="tab-content active">
+        <div class="card">
+            <div class="card-header">Get Authentication Token</div>
+            <div class="input-group">
+                <label for="baseUrlInput">Base URL:</label>
+                <input type="text" id="baseUrlInput" value="" placeholder="Base URL">
+            </div>
+            
+            <div class="input-group">
+                <label for="usernameInput">Username:</label>
+                <input type="text" id="usernameInput" value="" placeholder="Username">
+            </div>
+            
+            <div class="input-group">
+                <label for="passwordInput">Password:</label>
+                <input type="password" id="passwordInput" value="" placeholder="Password">
+            </div>
+            
+            <button id="getTokenButton">Get Token</button>
+            
+            <div id="tokenValue" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <div id="connectionTab" class="tab-content">
+        <div class="card">
+            <div class="card-header">SignalR Connection</div>
+            <div class="input-group">
+                <label for="tokenInput">Access Token:</label>
+                <textarea id="tokenInput" placeholder="Paste your access token here"></textarea>
+            </div>
+            
+            <div class="input-group">
+                <label for="jsonBodyInput">JSON Request Body:</label>
+                <textarea id="jsonBodyInput" placeholder="JSON payload"></textarea>
+            </div>
+            
+            <button id="connectButton">Connect</button>
+            <button id="disconnectButton" disabled>Disconnect</button>
+            <button id="clearLogButton">Clear Log</button>
+        </div>
+    </div>
+    
+    <h2>Status Log</h2>
+    <div id="statusLog"></div>
+    
+    <!-- Load SignalR from CDN -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script> -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/signalr.js/2.4.3/jquery.signalR.min.js"></script>
+    <script src="test.js"></script>
+</body>
+</html>

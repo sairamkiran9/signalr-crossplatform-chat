@@ -33,7 +33,7 @@ start "" http://localhost:%CLIENT_PORT%/custom-id-example.html
 
 echo.
 echo === Starting browser server ===
-call npx live-server --port=%CLIENT_PORT% --open=browser-example.html
+call npx live-server signalr-crossplatform-chat --port=%CLIENT_PORT% --open=browser-example.html
 
 echo.
 echo Demo stopped
